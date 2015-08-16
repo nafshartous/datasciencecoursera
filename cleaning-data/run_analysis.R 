@@ -1,0 +1,74 @@
+library(data.table)
+
+rootDir = "/Users/Niki/coursera/data-science/cleaning-data/project/Dataset/"
+
+#  Load function getIndicesList, a function that returns the indices of the mean and std columns to extract
+#
+source(paste(rootDir, "mean-std-indices.R", sep=""))
+
+#   Combine the subject, activity, and data data.frames
+# 
+mergeData <- function(subject, activity, data) {
+  result = cbind(subject, activity)
+  indicesList = getIndicesList()
+  
+  for (indices in indicesList) {
+    start = indices[[1]]
+    end = indices[[length(indices)]] 
+    result = cbind(result, data[,start:end])
+  }
+  result
+}
+
+# 
+# Load and merge the data files
+#
+loadData <- function() {
+  data_train = read.table(paste(rootDir, "train/X_train.txt", sep=""), header=F, fill=T)
+  subject_train = read.table(paste(rootDir, "train/subject_train.txt", sep=""),  header=F)
+  activity_train = read.table(paste(rootDir, "train/y_train.txt", sep=""), header=F)
+  
+  data_test = read.table(paste(rootDir, "test/X_test.txt", sep=""), header=F, fill=T)
+  subject_test = read.table(paste(rootDir, "test/subject_test.txt", sep=""),  header=F)
+  activity_test = read.table(paste(rootDir, "test/y_test.txt", sep=""), header=F)
+  
+  data = rbind(data_train, data_test)
+  subject = rbind(subject_train, subject_test)
+  activity = rbind(activity_train, activity_test)  
+  
+  mergeData(subject, labelActivities(activity), data)
+}
+
+
+# Transform the activity Id vector into a labeled vector
+# 
+labelActivities <- function(activityIds) {
+  mapActivityIdToLabel <- function(activityId) {
+    switch(activityId,
+           "Walking",
+           "Walking upstairs",
+           "Walking downstairs",
+           "Sitting",
+           "Standing",
+           "Laying")
+  }  
+  unlist(lapply(activityIds[,1], mapActivityIdToLabel))
+}
+
+data = loadData()
+
+names(data) = getLabels()
+
+## From the data set in step 4, creates a second, 
+## independent tidy data set with the average of each variable for 
+## each activity and each subject.
+
+tidy = aggregate(data[,-2], by=list(data$Subject, data$Activity), FUN=mean)[,-1]
+
+# Output tidy data set
+#
+names(tidy)[1] = "Activity"
+
+write.table(tidy, file=paste(rootDir, "tidy.txt", sep=""), row.name=FALSE)
+
+
